@@ -8,7 +8,9 @@ const state = {
         daily: null,
     },
     seriesPayload: null,
+    seriesSmoothingStats: null,
     seriesSmoothness: 100,
+    seriesRefreshFrame: null,
 };
 
 const seriesSmoothnessInput = document.getElementById("series-smoothness");
@@ -112,6 +114,20 @@ function updateSeriesSmoothnessLabel() {
     seriesSmoothnessLabel.textContent = getSeriesSmoothnessLabel();
 }
 
+function buildSeriesSmoothingStats(points) {
+    const prefixSums = [0];
+    const prefixCounts = [0];
+
+    points.forEach((point) => {
+        const value = point.glucose;
+        const isNumeric = value !== null && value !== undefined;
+        prefixSums.push(prefixSums[prefixSums.length - 1] + (isNumeric ? value : 0));
+        prefixCounts.push(prefixCounts[prefixCounts.length - 1] + (isNumeric ? 1 : 0));
+    });
+
+    return { prefixSums, prefixCounts };
+}
+
 function getSmoothedSeriesValues(points) {
     const windowSize = getSeriesSmoothingWindow();
     if (windowSize <= 1) {
@@ -119,18 +135,14 @@ function getSmoothedSeriesValues(points) {
     }
 
     const radius = Math.floor(windowSize / 2);
-    return points.map((point, index) => {
-        let total = 0;
-        let count = 0;
+    const stats = state.seriesSmoothingStats ?? buildSeriesSmoothingStats(points);
+    const { prefixSums, prefixCounts } = stats;
 
-        for (let offset = -radius; offset <= radius; offset += 1) {
-            const candidate = points[index + offset];
-            if (!candidate || candidate.glucose === null || candidate.glucose === undefined) {
-                continue;
-            }
-            total += candidate.glucose;
-            count += 1;
-        }
+    return points.map((point, index) => {
+        const start = Math.max(0, index - radius);
+        const end = Math.min(points.length - 1, index + radius);
+        const total = prefixSums[end + 1] - prefixSums[start];
+        const count = prefixCounts[end + 1] - prefixCounts[start];
 
         return count ? Number((total / count).toFixed(2)) : point.glucose;
     });
@@ -222,6 +234,7 @@ function createOrUpdateChart(chartKey, canvasId, configFactory, updateFn) {
 
 function renderSeriesChart(payload, thresholds) {
     state.seriesPayload = payload;
+    state.seriesSmoothingStats = buildSeriesSmoothingStats(payload.points);
     const labels = payload.points.map((point) => point.appTime);
     const values = getSmoothedSeriesValues(payload.points);
     const tension = getSeriesTension();
@@ -315,6 +328,17 @@ function refreshSeriesChart() {
     state.charts.series.update("none");
 }
 
+function scheduleSeriesChartRefresh() {
+    if (state.seriesRefreshFrame !== null) {
+        cancelAnimationFrame(state.seriesRefreshFrame);
+    }
+
+    state.seriesRefreshFrame = requestAnimationFrame(() => {
+        state.seriesRefreshFrame = null;
+        refreshSeriesChart();
+    });
+}
+
 function renderDailyChart(payload) {
     const labels = payload.days.map((day) => day.day);
 
@@ -398,13 +422,13 @@ document.getElementById("range-form").addEventListener("submit", (event) => {
 
 seriesSmoothnessInput.addEventListener("change", (event) => {
     state.seriesSmoothness = Number(event.target.value);
-    refreshSeriesChart();
+    scheduleSeriesChartRefresh();
     updateSeriesSmoothnessLabel();
 });
 
 seriesSmoothnessInput.addEventListener("input", (event) => {
     state.seriesSmoothness = Number(event.target.value);
-    refreshSeriesChart();
+    scheduleSeriesChartRefresh();
     updateSeriesSmoothnessLabel();
 });
 
