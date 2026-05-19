@@ -98,12 +98,15 @@ def parse_date_range(start: str | None, end: str | None, conn: sqlite3.Connectio
 
 
 def get_default_range(conn: sqlite3.Connection) -> DateRange:
-    row = conn.execute("SELECT MAX(appTime) AS latest FROM cgmRecords").fetchone()
-    if row is None or row["latest"] is None:
+    row = conn.execute(
+        "SELECT MIN(appTime) AS earliest, MAX(appTime) AS latest FROM cgmRecords"
+    ).fetchone()
+    if row is None or row["latest"] is None or row["earliest"] is None:
         raise DashboardError("No CGM data available in the database.")
 
+    earliest = parse_app_time(row["earliest"])
     end = parse_app_time(row["latest"])
-    start = end - timedelta(hours=24)
+    start = max(earliest, end - timedelta(days=7))
     return DateRange(start=start, end=end)
 
 

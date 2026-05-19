@@ -13,6 +13,36 @@ const state = {
 
 const seriesSmoothnessInput = document.getElementById("series-smoothness");
 const seriesSmoothnessLabel = document.getElementById("series-smoothness-label");
+const thresholdRegionPlugin = {
+    id: "thresholdRegionPlugin",
+    beforeDraw(chart, _args, options) {
+        const { ctx, chartArea, scales } = chart;
+        if (!chartArea || !scales.y) {
+            return;
+        }
+
+        const { left, right, top, bottom } = chartArea;
+        const yScale = scales.y;
+        const lowThreshold = options?.lowThreshold;
+        const highThreshold = options?.highThreshold;
+
+        ctx.save();
+
+        if (highThreshold !== undefined && highThreshold !== null) {
+            const highY = yScale.getPixelForValue(highThreshold);
+            ctx.fillStyle = "rgba(185, 28, 28, 0.08)";
+            ctx.fillRect(left, top, right - left, Math.max(0, highY - top));
+        }
+
+        if (lowThreshold !== undefined && lowThreshold !== null) {
+            const lowY = yScale.getPixelForValue(lowThreshold);
+            ctx.fillStyle = "rgba(194, 65, 12, 0.08)";
+            ctx.fillRect(left, Math.min(lowY, bottom), right - left, Math.max(0, bottom - lowY));
+        }
+
+        ctx.restore();
+    },
+};
 
 const summaryFields = {
     latestGlucose: document.getElementById("latest-glucose"),
@@ -178,7 +208,11 @@ function createOrUpdateChart(chartKey, canvasId, configFactory, updateFn) {
     const existingChart = state.charts[chartKey];
     if (!existingChart) {
         const context = document.getElementById(canvasId);
-        state.charts[chartKey] = new Chart(context, configFactory());
+        const config = configFactory();
+        if (chartKey === "series") {
+            config.plugins = [thresholdRegionPlugin];
+        }
+        state.charts[chartKey] = new Chart(context, config);
         return;
     }
 
@@ -186,35 +220,66 @@ function createOrUpdateChart(chartKey, canvasId, configFactory, updateFn) {
     existingChart.update("none");
 }
 
-function renderSeriesChart(payload) {
+function renderSeriesChart(payload, thresholds) {
     state.seriesPayload = payload;
     const labels = payload.points.map((point) => point.appTime);
     const values = getSmoothedSeriesValues(payload.points);
     const tension = getSeriesTension();
+    const lowThreshold = thresholds.low;
+    const highThreshold = thresholds.high;
+    const lowLine = labels.map(() => lowThreshold);
+    const highLine = labels.map(() => highThreshold);
 
     createOrUpdateChart("series", "series-chart", () => ({
         type: "line",
         data: {
             labels,
-            datasets: [{
-                label: "Glucose (mg/dL)",
-                data: values,
-                borderColor: "#1f6f84",
-                backgroundColor: "rgba(31, 111, 132, 0.15)",
-                pointRadius: 0,
-                fill: true,
-                cubicInterpolationMode: "monotone",
-                tension,
-                borderWidth: 2,
-                normalized: true,
-            }],
+            datasets: [
+                {
+                    label: "Glucose (mg/dL)",
+                    data: values,
+                    borderColor: "#1f6f84",
+                    backgroundColor: "rgba(31, 111, 132, 0.15)",
+                    pointRadius: 0,
+                    fill: true,
+                    cubicInterpolationMode: "monotone",
+                    tension,
+                    borderWidth: 2,
+                    normalized: true,
+                    order: 1,
+                },
+                {
+                    label: `Low threshold (${lowThreshold} mg/dL)`,
+                    data: lowLine,
+                    borderColor: "rgba(194, 65, 12, 0.85)",
+                    borderDash: [6, 6],
+                    pointRadius: 0,
+                    borderWidth: 1.5,
+                    fill: false,
+                    order: 0,
+                },
+                {
+                    label: `High threshold (${highThreshold} mg/dL)`,
+                    data: highLine,
+                    borderColor: "rgba(185, 28, 28, 0.85)",
+                    borderDash: [6, 6],
+                    pointRadius: 0,
+                    borderWidth: 1.5,
+                    fill: false,
+                    order: 0,
+                },
+            ],
         },
         options: {
             animation: false,
             responsive: true,
             maintainAspectRatio: false,
             plugins: {
-                legend: { display: false },
+                legend: { display: true },
+                thresholdRegionPlugin: {
+                    lowThreshold,
+                    highThreshold,
+                },
             },
             scales: {
                 x: {
@@ -230,6 +295,12 @@ function renderSeriesChart(payload) {
         chart.data.datasets[0].data = values;
         chart.data.datasets[0].tension = tension;
         chart.data.datasets[0].cubicInterpolationMode = "monotone";
+        chart.data.datasets[1].data = lowLine;
+        chart.data.datasets[1].label = `Low threshold (${lowThreshold} mg/dL)`;
+        chart.data.datasets[2].data = highLine;
+        chart.data.datasets[2].label = `High threshold (${highThreshold} mg/dL)`;
+        chart.options.plugins.thresholdRegionPlugin.lowThreshold = lowThreshold;
+        chart.options.plugins.thresholdRegionPlugin.highThreshold = highThreshold;
     });
 }
 
@@ -309,7 +380,7 @@ function loadDashboard(start = defaultStart, end = defaultEnd) {
 
     return fetchJson(`/api/dashboard${query}`).then((payload) => {
         renderSummary(payload.summary);
-        renderSeriesChart(payload.series);
+        renderSeriesChart(payload.series, payload.summary.thresholds);
         renderDailyChart(payload.daily);
     }).catch((error) => {
         window.alert(error.message);
