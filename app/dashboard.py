@@ -72,14 +72,25 @@ def ensure_schema(conn: sqlite3.Connection) -> None:
 
 
 def parse_app_time(value: str) -> datetime:
-    try:
-        return datetime.strptime(value, DATETIME_FORMAT)
-    except ValueError as exc:
-        raise DashboardError(f"Invalid datetime '{value}'. Expected format YYYY-MM-DD HH:MM:SS.") from exc
+    accepted_formats = (DATETIME_FORMAT, "%Y-%m-%d %H:%M")
+    for dt_format in accepted_formats:
+        try:
+            return datetime.strptime(value, dt_format)
+        except ValueError:
+            continue
+    raise DashboardError(f"Invalid datetime '{value}'. Expected format YYYY-MM-DD HH:MM:SS.")
 
 
 def format_app_time(value: datetime) -> str:
     return value.strftime(DATETIME_FORMAT)
+
+
+def start_of_day(value: datetime) -> datetime:
+    return value.replace(hour=0, minute=0, second=0, microsecond=0)
+
+
+def end_of_day(value: datetime) -> datetime:
+    return value.replace(hour=23, minute=59, second=59, microsecond=0)
 
 
 def parse_date_range(start: str | None, end: str | None, conn: sqlite3.Connection) -> DateRange:
@@ -105,8 +116,10 @@ def get_default_range(conn: sqlite3.Connection) -> DateRange:
         raise DashboardError("No CGM data available in the database.")
 
     earliest = parse_app_time(row["earliest"])
-    end = parse_app_time(row["latest"])
-    start = max(earliest, end - timedelta(days=7))
+    latest = parse_app_time(row["latest"])
+    end = end_of_day(latest)
+    candidate_start = start_of_day(latest - timedelta(days=7))
+    start = max(start_of_day(earliest), candidate_start)
     return DateRange(start=start, end=end)
 
 

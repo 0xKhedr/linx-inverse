@@ -291,6 +291,8 @@ h1 {
 }
 
 .quality-list div {
+    display: flex;
+    flex-direction: column;
     padding: 1rem;
     background: #fffdf9;
     border: 1px solid rgba(36, 32, 24, 0.08);
@@ -313,6 +315,11 @@ h1 {
     gap: 1rem;
 }
 
+.distribution-grid h3,
+.event-columns h3 {
+    margin-bottom: 0.55rem;
+}
+
 .distribution-list {
     list-style: none;
     padding: 0;
@@ -324,7 +331,7 @@ h1 {
 .distribution-list li {
     display: flex;
     justify-content: space-between;
-    padding: 0.8rem 0.95rem;
+    padding: 0.65rem 0.8rem;
     background: #fffdf9;
     border: 1px solid rgba(36, 32, 24, 0.08);
 }

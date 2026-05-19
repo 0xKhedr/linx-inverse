@@ -67,7 +67,11 @@ const summaryFields = {
 };
 
 function toApiDate(value) {
-    return value.replace("T", " ");
+    if (!value) {
+        return value;
+    }
+    const normalized = value.length === 16 ? `${value}:00` : value;
+    return normalized.replace("T", " ");
 }
 
 function formatNumber(value, fractionDigits = 0) {
@@ -78,6 +82,150 @@ function formatNumber(value, fractionDigits = 0) {
         maximumFractionDigits: fractionDigits,
         minimumFractionDigits: fractionDigits,
     }).format(value);
+}
+
+function formatPercent(value) {
+    return `${formatNumber(value, 1)}%`;
+}
+
+function parseAppTime(value) {
+    return new Date(value.replace(" ", "T"));
+}
+
+function createTimeFormatter(includeDate) {
+    return new Intl.DateTimeFormat(undefined, includeDate
+        ? {
+            month: "short",
+            day: "numeric",
+            hour: "2-digit",
+            minute: "2-digit",
+            hour12: false,
+        }
+        : {
+            hour: "2-digit",
+            minute: "2-digit",
+            hour12: false,
+        });
+}
+
+function createDateFormatter() {
+    return new Intl.DateTimeFormat(undefined, {
+        month: "short",
+        day: "numeric",
+    });
+}
+
+function floorToLocalDay(timestampMs) {
+    const date = new Date(timestampMs);
+    date.setHours(0, 0, 0, 0);
+    return date.getTime();
+}
+
+function ceilToLocalDay(timestampMs) {
+    const floorMs = floorToLocalDay(timestampMs);
+    return floorMs === timestampMs ? timestampMs : floorMs + (24 * 60 * 60 * 1000);
+}
+
+function floorToLocalHourStep(timestampMs, stepHours) {
+    const date = new Date(timestampMs);
+    date.setMinutes(0, 0, 0);
+    date.setHours(date.getHours() - (date.getHours() % stepHours));
+    return date.getTime();
+}
+
+function ceilToLocalHourStep(timestampMs, stepHours) {
+    const floorMs = floorToLocalHourStep(timestampMs, stepHours);
+    return floorMs === timestampMs ? timestampMs : floorMs + (stepHours * 60 * 60 * 1000);
+}
+
+function floorToLocalMinuteStep(timestampMs, stepMinutes) {
+    const date = new Date(timestampMs);
+    date.setSeconds(0, 0);
+    date.setMinutes(date.getMinutes() - (date.getMinutes() % stepMinutes));
+    return date.getTime();
+}
+
+function ceilToLocalMinuteStep(timestampMs, stepMinutes) {
+    const floorMs = floorToLocalMinuteStep(timestampMs, stepMinutes);
+    return floorMs === timestampMs ? timestampMs : floorMs + (stepMinutes * 60 * 1000);
+}
+
+function buildTimeSeriesPoints(points) {
+    return points.map((point) => ({
+        x: parseAppTime(point.appTime).getTime(),
+        y: point.glucose,
+    }));
+}
+
+function buildThresholdLine(startMs, endMs, value) {
+    return [
+        { x: startMs, y: value },
+        { x: endMs, y: value },
+    ];
+}
+
+function getTimeAxisConfig(startMs, endMs) {
+    const spanMs = Math.abs(endMs - startMs);
+    const hourMs = 60 * 60 * 1000;
+    const dayMs = 24 * hourMs;
+
+    if (spanMs > 5 * dayMs) {
+        return {
+            min: floorToLocalDay(startMs),
+            max: ceilToLocalDay(endMs),
+            stepSize: dayMs,
+            formatTick: (value) => createDateFormatter().format(new Date(Number(value))),
+        };
+    }
+
+    if (spanMs > 2 * dayMs) {
+        const stepSize = 6 * hourMs;
+        return {
+            min: floorToLocalDay(startMs),
+            max: ceilToLocalDay(endMs),
+            stepSize,
+            formatTick: (value) => createTimeFormatter(true).format(new Date(Number(value))),
+        };
+    }
+
+    if (spanMs > 12 * hourMs) {
+        const stepSize = hourMs;
+        return {
+            min: floorToLocalHourStep(startMs, 1),
+            max: ceilToLocalHourStep(endMs, 1),
+            stepSize,
+            formatTick: (value) => createTimeFormatter(false).format(new Date(Number(value))),
+        };
+    }
+
+    const stepSize = 30 * 60 * 1000;
+    return {
+        min: floorToLocalMinuteStep(startMs, 30),
+        max: ceilToLocalMinuteStep(endMs, 30),
+        stepSize,
+        formatTick: (value) => createTimeFormatter(false).format(new Date(Number(value))),
+    };
+}
+
+function formatTimeTick(value, axisConfig) {
+    return axisConfig.formatTick(value);
+}
+
+function getSeriesYRange(points, thresholds) {
+    const lowThreshold = thresholds.low ?? thresholds.lowThreshold;
+    const highThreshold = thresholds.high ?? thresholds.highThreshold;
+    const values = points
+        .map((point) => point.glucose)
+        .filter((value) => value !== null && value !== undefined);
+    const baselineValues = [lowThreshold, highThreshold, ...values];
+    const minValue = Math.min(...baselineValues);
+    const maxValue = Math.max(...baselineValues);
+    const padding = 8;
+
+    return {
+        min: Math.max(0, Math.floor((minValue - padding) / 10) * 10),
+        max: Math.ceil((maxValue + padding) / 10) * 10,
+    };
 }
 
 function fetchJson(url) {
@@ -210,7 +358,7 @@ function renderSummary(summary) {
     summaryFields.minMax.textContent = metrics.minGlucose !== null && metrics.maxGlucose !== null
         ? `${formatNumber(metrics.minGlucose, 0)} / ${formatNumber(metrics.maxGlucose, 0)}`
         : "--";
-    summaryFields.rangeMix.textContent = `${formatNumber(metrics.lowPercent, 1)}% / ${formatNumber(metrics.inRangePercent, 1)}% / ${formatNumber(metrics.highPercent, 1)}%`;
+    summaryFields.rangeMix.textContent = `${formatPercent(metrics.lowPercent)} / ${formatPercent(metrics.inRangePercent)} / ${formatPercent(metrics.highPercent)}`;
     summaryFields.qualitySummary.textContent = quality.avgQuality !== null ? `${formatNumber(quality.avgQuality, 1)} avg` : "--";
     summaryFields.qualityDetail.textContent = `${quality.validCount} valid, ${quality.invalidCount} invalid`;
     summaryFields.validCount.textContent = formatNumber(quality.validCount, 0);
@@ -243,26 +391,32 @@ function createOrUpdateChart(chartKey, canvasId, configFactory, updateFn) {
 function renderSeriesChart(payload, thresholds) {
     state.seriesPayload = payload;
     state.seriesSmoothingStats = buildSeriesSmoothingStats(payload.points);
-    const labels = payload.points.map((point) => point.appTime);
+    const startMs = parseAppTime(payload.start).getTime();
+    const endMs = parseAppTime(payload.end).getTime();
+    const axisConfig = getTimeAxisConfig(startMs, endMs);
+    const yRange = getSeriesYRange(payload.points, thresholds);
     const values = getSmoothedSeriesValues(payload.points);
+    const seriesPoints = payload.points.map((point, index) => ({
+        x: parseAppTime(point.appTime).getTime(),
+        y: values[index],
+    }));
     const tension = getSeriesTension();
     const lowThreshold = thresholds.low;
     const highThreshold = thresholds.high;
-    const lowLine = labels.map(() => lowThreshold);
-    const highLine = labels.map(() => highThreshold);
+    const lowLine = buildThresholdLine(axisConfig.min, axisConfig.max, lowThreshold);
+    const highLine = buildThresholdLine(axisConfig.min, axisConfig.max, highThreshold);
 
     createOrUpdateChart("series", "series-chart", () => ({
         type: "line",
         data: {
-            labels,
             datasets: [
                 {
                     label: "Glucose (mg/dL)",
-                    data: values,
+                    data: seriesPoints,
                     borderColor: "#1f6f84",
                     backgroundColor: "rgba(31, 111, 132, 0.15)",
                     pointRadius: 0,
-                    fill: true,
+                    fill: false,
                     cubicInterpolationMode: "monotone",
                     tension,
                     borderWidth: 2,
@@ -292,11 +446,22 @@ function renderSeriesChart(payload, thresholds) {
             ],
         },
         options: {
+            parsing: false,
             animation: false,
             responsive: true,
             maintainAspectRatio: false,
             plugins: {
                 legend: { display: true },
+                tooltip: {
+                    callbacks: {
+                        title(items) {
+                            if (!items.length) {
+                                return "";
+                            }
+                            return createTimeFormatter(true).format(new Date(items[0].parsed.x));
+                        },
+                    },
+                },
                 thresholdRegionPlugin: {
                     lowThreshold,
                     highThreshold,
@@ -304,22 +469,38 @@ function renderSeriesChart(payload, thresholds) {
             },
             scales: {
                 x: {
-                    ticks: { maxTicksLimit: 8 },
+                    type: "linear",
+                    min: axisConfig.min,
+                    max: axisConfig.max,
+                    ticks: {
+                        maxTicksLimit: 8,
+                        stepSize: axisConfig.stepSize,
+                        callback(value) {
+                            return formatTimeTick(value, axisConfig);
+                        },
+                    },
                 },
                 y: {
                     beginAtZero: false,
+                    min: yRange.min,
+                    max: yRange.max,
                 },
             },
         },
     }), (chart) => {
-        chart.data.labels = labels;
-        chart.data.datasets[0].data = values;
+        chart.data.datasets[0].data = seriesPoints;
         chart.data.datasets[0].tension = tension;
         chart.data.datasets[0].cubicInterpolationMode = "monotone";
         chart.data.datasets[1].data = lowLine;
         chart.data.datasets[1].label = `Low threshold (${lowThreshold} mg/dL)`;
         chart.data.datasets[2].data = highLine;
         chart.data.datasets[2].label = `High threshold (${highThreshold} mg/dL)`;
+        chart.options.scales.x.min = axisConfig.min;
+        chart.options.scales.x.max = axisConfig.max;
+        chart.options.scales.x.ticks.stepSize = axisConfig.stepSize;
+        chart.options.scales.x.ticks.callback = (value) => formatTimeTick(value, axisConfig);
+        chart.options.scales.y.min = yRange.min;
+        chart.options.scales.y.max = yRange.max;
         chart.options.plugins.thresholdRegionPlugin.lowThreshold = lowThreshold;
         chart.options.plugins.thresholdRegionPlugin.highThreshold = highThreshold;
     });
@@ -330,9 +511,16 @@ function refreshSeriesChart() {
         return;
     }
 
-    state.charts.series.data.datasets[0].data = getSmoothedSeriesValues(state.seriesPayload.points);
+    const smoothedValues = getSmoothedSeriesValues(state.seriesPayload.points);
+    state.charts.series.data.datasets[0].data = state.seriesPayload.points.map((point, index) => ({
+        x: parseAppTime(point.appTime).getTime(),
+        y: smoothedValues[index],
+    }));
     state.charts.series.data.datasets[0].tension = getSeriesTension();
     state.charts.series.data.datasets[0].cubicInterpolationMode = "monotone";
+    const yRange = getSeriesYRange(state.seriesPayload.points, state.charts.series.options.plugins.thresholdRegionPlugin);
+    state.charts.series.options.scales.y.min = yRange.min;
+    state.charts.series.options.scales.y.max = yRange.max;
     state.charts.series.update("none");
 }
 
