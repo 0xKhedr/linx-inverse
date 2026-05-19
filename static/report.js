@@ -1,21 +1,24 @@
 const reportPayloadNode = document.getElementById("report-payload");
+const uiCopyNode = document.getElementById("ui-copy");
 
 if (reportPayloadNode) {
     const reportPayload = JSON.parse(reportPayloadNode.textContent);
+    const ui = JSON.parse(uiCopyNode.textContent);
     const thresholds = reportPayload.summary.thresholds;
-    const fullTimeFormatter = new Intl.DateTimeFormat(undefined, {
+    const locale = document.body.dataset.locale || undefined;
+    const fullTimeFormatter = new Intl.DateTimeFormat(locale, {
         month: "short",
         day: "numeric",
         hour: "2-digit",
         minute: "2-digit",
         hour12: false,
     });
-    const shortTimeFormatter = new Intl.DateTimeFormat(undefined, {
+    const shortTimeFormatter = new Intl.DateTimeFormat(locale, {
         hour: "2-digit",
         minute: "2-digit",
         hour12: false,
     });
-    const dateFormatter = new Intl.DateTimeFormat(undefined, {
+    const dateFormatter = new Intl.DateTimeFormat(locale, {
         month: "short",
         day: "numeric",
     });
@@ -197,7 +200,7 @@ if (reportPayloadNode) {
                         cubicInterpolationMode: "monotone",
                     },
                     {
-                        label: `Low threshold (${thresholds.low} mg/dL)`,
+                        label: ui.low_threshold_label.replace("{value}", thresholds.low),
                         data: lowLine,
                         borderColor: "rgba(194, 65, 12, 0.85)",
                         borderDash: [6, 6],
@@ -205,7 +208,7 @@ if (reportPayloadNode) {
                         borderWidth: 1.5,
                     },
                     {
-                        label: `High threshold (${thresholds.high} mg/dL)`,
+                        label: ui.high_threshold_label.replace("{value}", thresholds.high),
                         data: highLine,
                         borderColor: "rgba(185, 28, 28, 0.85)",
                         borderDash: [6, 6],
@@ -265,7 +268,7 @@ if (reportPayloadNode) {
         buildChart(
             document.getElementById("report-overall-chart"),
             reportPayload.series.points,
-            "Overall glucose",
+            ui.overall_glucose_label,
             null,
             sharedYRange,
         );
@@ -278,7 +281,7 @@ if (reportPayloadNode) {
             buildChart(
                 canvas,
                 day.points,
-                `${day.day} glucose`,
+                ui.day_glucose_label.replace("{day}", day.day),
                 buildDayAxisConfig(day.day),
                 sharedYRange,
             );

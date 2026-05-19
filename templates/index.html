@@ -1,23 +1,22 @@
 <!doctype html>
-<html lang="en">
+<html lang="{{ ui.locale }}" dir="{{ ui.dir }}">
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>LinX CGM Dashboard</title>
+    <title>{{ ui.page_title }}</title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;700&family=Source+Sans+3:wght@400;600&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}">
 </head>
-<body data-default-start="{{ default_start_api }}" data-default-end="{{ default_end_api }}">
+<body data-default-start="{{ default_start_api }}" data-default-end="{{ default_end_api }}" data-language="{{ language }}" data-locale="{{ ui.locale }}" data-direction="{{ ui.dir }}">
     <main class="page-shell">
         <section class="hero">
             <div>
-                <p class="eyebrow">Local Analysis</p>
-                <h1>CGM history from your SQLite store.</h1>
+                <p class="eyebrow">{{ ui.hero_eyebrow }}</p>
+                <h1>{{ ui.hero_title }}</h1>
                 <p class="hero-copy">
-                    Explore glucose trends, day-level summaries, and threshold excursions from the records in
-                    <code>resources/database.db</code>.
+                    {{ ui.hero_copy }}
                 </p>
                 {% if error %}
                 <p class="hero-copy">{{ error }}</p>
@@ -25,46 +24,53 @@
             </div>
             <form id="range-form" class="range-form">
                 <label>
-                    <span>Start</span>
+                    <span>{{ ui.start }}</span>
                     <input id="start-input" name="start" type="datetime-local" value="{{ default_start }}" required>
                 </label>
                 <label>
-                    <span>End</span>
+                    <span>{{ ui.end }}</span>
                     <input id="end-input" name="end" type="datetime-local" value="{{ default_end }}" required>
                 </label>
-                <button type="submit">Update Dashboard</button>
-                <a id="report-link" class="secondary-action" href="#" target="_blank" rel="noopener">Extract Report</a>
+                <label>
+                    <span>{{ ui.language }}</span>
+                    <select id="language-input" name="lang">
+                        <option value="en" {% if language == "en" %}selected{% endif %}>{{ ui.language_option_en }}</option>
+                        <option value="ar" {% if language == "ar" %}selected{% endif %}>{{ ui.language_option_ar }}</option>
+                    </select>
+                </label>
+                <button type="submit">{{ ui.update_dashboard }}</button>
+                <a id="report-link" class="secondary-action" href="#" target="_blank" rel="noopener">{{ ui.extract_report }}</a>
             </form>
         </section>
 
         <section class="kpi-grid" id="kpi-grid">
             <article class="kpi-card accent">
-                <span>Latest glucose</span>
+                <span>{{ ui.latest_glucose }}</span>
                 <strong id="latest-glucose">--</strong>
                 <small id="latest-timestamp">--</small>
             </article>
             <article class="kpi-card">
-                <span>Records</span>
+                <span>{{ ui.records }}</span>
                 <strong id="record-count">--</strong>
-                <small>Rows in selected window</small>
+                <small>{{ ui.rows_in_selected_window }}</small>
             </article>
             <article class="kpi-card">
-                <span>Average</span>
+                <span>{{ ui.average }}</span>
                 <strong id="avg-glucose">--</strong>
                 <small>mg/dL</small>
             </article>
             <article class="kpi-card">
-                <span>Min / Max</span>
+                <span>{{ ui.min_max }}</span>
                 <strong id="min-max">--</strong>
                 <small>mg/dL</small>
             </article>
             <article class="kpi-card">
-                <span>Low / In Range / High</span>
+                <span>{{ ui.low_in_range_high }}</span>
                 <strong id="range-mix">--</strong>
-                <small>Thresholds 70 / 180 mg/dL</small>
+                <small>{{ ui.thresholds.format(low=70, high=180) }}</small>
             </article>
             <article class="kpi-card">
-                <span>Quality</span>
+                <span>{{ ui.quality }}</span>
                 <strong id="quality-summary">--</strong>
                 <small id="quality-detail">--</small>
             </article>
@@ -73,61 +79,61 @@
         <section class="chart-panel">
             <div class="panel-heading">
                 <div>
-                    <p class="eyebrow">Series</p>
-                    <h2>Glucose over time</h2>
+                    <p class="eyebrow">{{ ui.series_eyebrow }}</p>
+                    <h2>{{ ui.glucose_over_time }}</h2>
                 </div>
                 <label class="chart-control" for="series-smoothness">
-                    <span>Smoothness</span>
+                    <span>{{ ui.smoothness }}</span>
                     <input id="series-smoothness" type="range" min="0" max="100" step="1" value="100">
-                    <small id="series-smoothness-label">Most smooth</small>
+                    <small id="series-smoothness-label">{{ ui.most_smooth }}</small>
                 </label>
             </div>
-            <canvas id="series-chart" aria-label="Glucose time series" role="img"></canvas>
+            <canvas id="series-chart" aria-label="{{ ui.glucose_over_time }}" role="img"></canvas>
         </section>
 
         <section class="chart-panel">
             <div class="panel-heading">
                 <div>
-                    <p class="eyebrow">Daily Rollup</p>
-                    <h2>Average, minimum, and maximum by day</h2>
+                    <p class="eyebrow">{{ ui.daily_rollup }}</p>
+                    <h2>{{ ui.daily_avg_min_max }}</h2>
                 </div>
             </div>
-            <canvas id="daily-chart" aria-label="Daily glucose summary" role="img"></canvas>
+            <canvas id="daily-chart" aria-label="{{ ui.daily_aggregates }}" role="img"></canvas>
         </section>
 
         <section class="insight-grid">
             <article class="panel">
                 <div class="panel-heading">
                     <div>
-                        <p class="eyebrow">Quality</p>
-                        <h2>Data quality snapshot</h2>
+                        <p class="eyebrow">{{ ui.quality_eyebrow }}</p>
+                        <h2>{{ ui.quality_snapshot }}</h2>
                     </div>
                 </div>
                 <dl class="quality-list">
                     <div>
-                        <dt>Valid glucose rows</dt>
+                        <dt>{{ ui.valid_glucose_rows }}</dt>
                         <dd id="valid-count">--</dd>
                     </div>
                     <div>
-                        <dt>Invalid glucose rows</dt>
+                        <dt>{{ ui.invalid_glucose_rows }}</dt>
                         <dd id="invalid-count">--</dd>
                     </div>
                     <div>
-                        <dt>Non-zero status rows</dt>
+                        <dt>{{ ui.non_zero_status_rows }}</dt>
                         <dd id="alert-count">--</dd>
                     </div>
                     <div>
-                        <dt>Average quality</dt>
+                        <dt>{{ ui.average_quality }}</dt>
                         <dd id="avg-quality">--</dd>
                     </div>
                 </dl>
                 <div class="distribution-grid">
                     <div>
-                        <h3>Status counts</h3>
+                        <h3>{{ ui.status_counts }}</h3>
                         <ul id="status-counts" class="distribution-list"></ul>
                     </div>
                     <div>
-                        <h3>Quality bands</h3>
+                        <h3>{{ ui.quality_bands }}</h3>
                         <ul id="quality-bands" class="distribution-list"></ul>
                     </div>
                 </div>
@@ -136,25 +142,25 @@
             <article class="panel">
                 <div class="panel-heading">
                     <div>
-                        <p class="eyebrow">Threshold Events</p>
-                        <h2>Recent lows and highs</h2>
+                        <p class="eyebrow">{{ ui.threshold_events }}</p>
+                        <h2>{{ ui.recent_lows_highs }}</h2>
                     </div>
                 </div>
                 <div class="event-columns">
                     <div>
-                        <h3>Recent lows</h3>
+                        <h3>{{ ui.recent_lows }}</h3>
                         <table>
                             <thead>
-                                <tr><th>Time</th><th>Glucose</th><th>Quality</th></tr>
+                                <tr><th>{{ ui.time }}</th><th>{{ ui.glucose }}</th><th>{{ ui.quality }}</th></tr>
                             </thead>
                             <tbody id="recent-lows"></tbody>
                         </table>
                     </div>
                     <div>
-                        <h3>Recent highs</h3>
+                        <h3>{{ ui.recent_highs }}</h3>
                         <table>
                             <thead>
-                                <tr><th>Time</th><th>Glucose</th><th>Quality</th></tr>
+                                <tr><th>{{ ui.time }}</th><th>{{ ui.glucose }}</th><th>{{ ui.quality }}</th></tr>
                             </thead>
                             <tbody id="recent-highs"></tbody>
                         </table>
@@ -165,6 +171,7 @@
     </main>
 
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script id="ui-copy" type="application/json">{{ ui|tojson }}</script>
     <script src="{{ url_for('static', filename='app.js') }}"></script>
 </body>
 </html>

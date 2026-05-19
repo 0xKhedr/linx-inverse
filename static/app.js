@@ -1,6 +1,9 @@
 const body = document.body;
 const defaultStart = body.dataset.defaultStart;
 const defaultEnd = body.dataset.defaultEnd;
+const ui = JSON.parse(document.getElementById("ui-copy").textContent);
+const startInput = document.getElementById("start-input");
+const endInput = document.getElementById("end-input");
 
 const state = {
     charts: {
@@ -16,6 +19,7 @@ const state = {
 const seriesSmoothnessInput = document.getElementById("series-smoothness");
 const seriesSmoothnessLabel = document.getElementById("series-smoothness-label");
 const reportLink = document.getElementById("report-link");
+const languageInput = document.getElementById("language-input");
 const thresholdRegionPlugin = {
     id: "thresholdRegionPlugin",
     beforeDraw(chart, _args, options) {
@@ -78,7 +82,7 @@ function formatNumber(value, fractionDigits = 0) {
     if (value === null || value === undefined) {
         return "--";
     }
-    return new Intl.NumberFormat(undefined, {
+    return new Intl.NumberFormat(body.dataset.locale || undefined, {
         maximumFractionDigits: fractionDigits,
         minimumFractionDigits: fractionDigits,
     }).format(value);
@@ -93,7 +97,7 @@ function parseAppTime(value) {
 }
 
 function createTimeFormatter(includeDate) {
-    return new Intl.DateTimeFormat(undefined, includeDate
+    return new Intl.DateTimeFormat(body.dataset.locale || undefined, includeDate
         ? {
             month: "short",
             day: "numeric",
@@ -109,7 +113,7 @@ function createTimeFormatter(includeDate) {
 }
 
 function createDateFormatter() {
-    return new Intl.DateTimeFormat(undefined, {
+    return new Intl.DateTimeFormat(body.dataset.locale || undefined, {
         month: "short",
         day: "numeric",
     });
@@ -248,15 +252,15 @@ function getSeriesSmoothingWindow() {
 
 function getSeriesSmoothnessLabel() {
     if (state.seriesSmoothness >= 85) {
-        return "Most smooth";
+        return ui.most_smooth;
     }
     if (state.seriesSmoothness >= 55) {
-        return "Balanced";
+        return ui.balanced;
     }
     if (state.seriesSmoothness >= 20) {
-        return "Sharper";
+        return ui.sharper;
     }
-    return "Raw";
+    return ui.raw;
 }
 
 function updateSeriesSmoothnessLabel() {
@@ -297,51 +301,59 @@ function getSmoothedSeriesValues(points) {
     });
 }
 
-function buildQuery(start, end) {
-    const params = new URLSearchParams({ start, end });
+function buildQuery(start, end, extras = {}) {
+    const params = new URLSearchParams({ start, end, ...extras });
     return `?${params.toString()}`;
 }
 
-function syncReportLink(start, end) {
+function syncReportLink(start, end, language) {
     if (!reportLink) {
         return;
     }
-    reportLink.href = `/report${buildQuery(start, end)}`;
+    reportLink.href = `/report${buildQuery(start, end, { lang: language })}`;
 }
 
 function renderDistribution(listNode, rows, labelKey) {
-    listNode.innerHTML = "";
+    listNode.replaceChildren();
     if (!rows.length) {
         const item = document.createElement("li");
         item.className = "empty-state";
-        item.textContent = "No data in this range.";
+        item.textContent = ui.empty_range;
         listNode.appendChild(item);
         return;
     }
 
     rows.forEach((row) => {
         const item = document.createElement("li");
-        item.innerHTML = `<span>${row[labelKey]}</span><strong>${row.count}</strong>`;
+        const label = document.createElement("span");
+        const count = document.createElement("strong");
+        label.textContent = row[labelKey];
+        count.textContent = formatNumber(row.count, 0);
+        item.append(label, count);
         listNode.appendChild(item);
     });
 }
 
 function renderEvents(tbody, rows) {
-    tbody.innerHTML = "";
+    tbody.replaceChildren();
     if (!rows.length) {
         const tr = document.createElement("tr");
-        tr.innerHTML = `<td colspan="3" class="empty-state">No events in this range.</td>`;
+        const td = document.createElement("td");
+        td.colSpan = 3;
+        td.className = "empty-state";
+        td.textContent = ui.no_events;
+        tr.appendChild(td);
         tbody.appendChild(tr);
         return;
     }
 
     rows.forEach((row) => {
         const tr = document.createElement("tr");
-        tr.innerHTML = `
-            <td>${row.appTime}</td>
-            <td>${formatNumber(row.glucose, 0)}</td>
-            <td>${formatNumber(row.quality, 0)}</td>
-        `;
+        [row.appTime, formatNumber(row.glucose, 0), formatNumber(row.quality, 0)].forEach((value) => {
+            const td = document.createElement("td");
+            td.textContent = value;
+            tr.appendChild(td);
+        });
         tbody.appendChild(tr);
     });
 }
@@ -352,15 +364,17 @@ function renderSummary(summary) {
     const quality = summary.quality;
 
     summaryFields.latestGlucose.textContent = latest ? `${formatNumber(latest.glucose, 0)} mg/dL` : "--";
-    summaryFields.latestTimestamp.textContent = latest ? latest.appTime : "No rows in selected range";
+    summaryFields.latestTimestamp.textContent = latest ? latest.appTime : ui.no_rows_in_selected_range;
     summaryFields.recordCount.textContent = formatNumber(metrics.recordCount, 0);
     summaryFields.avgGlucose.textContent = metrics.avgGlucose !== null ? `${formatNumber(metrics.avgGlucose, 1)} mg/dL` : "--";
     summaryFields.minMax.textContent = metrics.minGlucose !== null && metrics.maxGlucose !== null
         ? `${formatNumber(metrics.minGlucose, 0)} / ${formatNumber(metrics.maxGlucose, 0)}`
         : "--";
     summaryFields.rangeMix.textContent = `${formatPercent(metrics.lowPercent)} / ${formatPercent(metrics.inRangePercent)} / ${formatPercent(metrics.highPercent)}`;
-    summaryFields.qualitySummary.textContent = quality.avgQuality !== null ? `${formatNumber(quality.avgQuality, 1)} avg` : "--";
-    summaryFields.qualityDetail.textContent = `${quality.validCount} valid, ${quality.invalidCount} invalid`;
+    summaryFields.qualitySummary.textContent = quality.avgQuality !== null ? ui.quality_avg.replace("{value}", formatNumber(quality.avgQuality, 1)) : "--";
+    summaryFields.qualityDetail.textContent = ui.valid_invalid
+        .replace("{valid}", quality.validCount)
+        .replace("{invalid}", quality.invalidCount);
     summaryFields.validCount.textContent = formatNumber(quality.validCount, 0);
     summaryFields.invalidCount.textContent = formatNumber(quality.invalidCount, 0);
     summaryFields.alertCount.textContent = formatNumber(quality.alertCount, 0);
@@ -411,7 +425,7 @@ function renderSeriesChart(payload, thresholds) {
         data: {
             datasets: [
                 {
-                    label: "Glucose (mg/dL)",
+                    label: ui.glucose_series_label,
                     data: seriesPoints,
                     borderColor: "#1f6f84",
                     backgroundColor: "rgba(31, 111, 132, 0.15)",
@@ -424,7 +438,7 @@ function renderSeriesChart(payload, thresholds) {
                     order: 1,
                 },
                 {
-                    label: `Low threshold (${lowThreshold} mg/dL)`,
+                    label: ui.low_threshold_label.replace("{value}", lowThreshold),
                     data: lowLine,
                     borderColor: "rgba(194, 65, 12, 0.85)",
                     borderDash: [6, 6],
@@ -434,7 +448,7 @@ function renderSeriesChart(payload, thresholds) {
                     order: 0,
                 },
                 {
-                    label: `High threshold (${highThreshold} mg/dL)`,
+                    label: ui.high_threshold_label.replace("{value}", highThreshold),
                     data: highLine,
                     borderColor: "rgba(185, 28, 28, 0.85)",
                     borderDash: [6, 6],
@@ -492,9 +506,9 @@ function renderSeriesChart(payload, thresholds) {
         chart.data.datasets[0].tension = tension;
         chart.data.datasets[0].cubicInterpolationMode = "monotone";
         chart.data.datasets[1].data = lowLine;
-        chart.data.datasets[1].label = `Low threshold (${lowThreshold} mg/dL)`;
+        chart.data.datasets[1].label = ui.low_threshold_label.replace("{value}", lowThreshold);
         chart.data.datasets[2].data = highLine;
-        chart.data.datasets[2].label = `High threshold (${highThreshold} mg/dL)`;
+        chart.data.datasets[2].label = ui.high_threshold_label.replace("{value}", highThreshold);
         chart.options.scales.x.min = axisConfig.min;
         chart.options.scales.x.max = axisConfig.max;
         chart.options.scales.x.ticks.stepSize = axisConfig.stepSize;
@@ -545,7 +559,7 @@ function renderDailyChart(payload) {
             datasets: [
                 {
                     type: "line",
-                    label: "Average",
+                    label: ui.daily_average_label,
                     data: payload.days.map((day) => day.avgGlucose),
                     borderColor: "#bf5b2c",
                     backgroundColor: "#bf5b2c",
@@ -553,13 +567,13 @@ function renderDailyChart(payload) {
                     yAxisID: "y",
                 },
                 {
-                    label: "Minimum",
+                    label: ui.daily_minimum_label,
                     data: payload.days.map((day) => day.minGlucose),
                     backgroundColor: "rgba(194, 65, 12, 0.72)",
                     yAxisID: "y",
                 },
                 {
-                    label: "Maximum",
+                    label: ui.daily_maximum_label,
                     data: payload.days.map((day) => day.maxGlucose),
                     backgroundColor: "rgba(31, 111, 132, 0.72)",
                     yAxisID: "y",
@@ -585,7 +599,7 @@ function renderDailyChart(payload) {
 }
 
 function setFormDisabled(disabled) {
-    document.querySelectorAll("#range-form input, #range-form button").forEach((element) => {
+    document.querySelectorAll("#range-form input, #range-form button, #range-form select").forEach((element) => {
         element.disabled = disabled;
     });
 }
@@ -596,7 +610,8 @@ function loadDashboard(start = defaultStart, end = defaultEnd) {
     }
 
     setFormDisabled(true);
-    syncReportLink(start, end);
+    const language = languageInput?.value || body.dataset.language || "en";
+    syncReportLink(start, end, language);
     const query = buildQuery(start, end);
 
     return fetchJson(`/api/dashboard${query}`).then((payload) => {
@@ -612,9 +627,25 @@ function loadDashboard(start = defaultStart, end = defaultEnd) {
 
 document.getElementById("range-form").addEventListener("submit", (event) => {
     event.preventDefault();
-    const start = toApiDate(document.getElementById("start-input").value);
-    const end = toApiDate(document.getElementById("end-input").value);
+    const start = toApiDate(startInput.value);
+    const end = toApiDate(endInput.value);
+    const language = languageInput?.value || "en";
+    const url = new URL(window.location.href);
+    url.searchParams.set("start", start);
+    url.searchParams.set("end", end);
+    url.searchParams.set("lang", language);
+    window.history.replaceState({}, "", url);
     loadDashboard(start, end);
+});
+
+languageInput?.addEventListener("change", () => {
+    const start = toApiDate(startInput.value) || defaultStart;
+    const end = toApiDate(endInput.value) || defaultEnd;
+    const url = new URL(window.location.href);
+    url.searchParams.set("start", start);
+    url.searchParams.set("end", end);
+    url.searchParams.set("lang", languageInput.value);
+    window.location.href = url.toString();
 });
 
 seriesSmoothnessInput.addEventListener("change", (event) => {
@@ -630,4 +661,17 @@ seriesSmoothnessInput.addEventListener("input", (event) => {
 });
 
 updateSeriesSmoothnessLabel();
-loadDashboard();
+
+const initialParams = new URLSearchParams(window.location.search);
+const initialStart = initialParams.get("start") || defaultStart;
+const initialEnd = initialParams.get("end") || defaultEnd;
+
+if (initialParams.has("start")) {
+    startInput.value = initialParams.get("start").replace(" ", "T");
+}
+
+if (initialParams.has("end")) {
+    endInput.value = initialParams.get("end").replace(" ", "T");
+}
+
+loadDashboard(initialStart, initialEnd);

@@ -168,12 +168,24 @@ class WebAppApiTestCase(unittest.TestCase):
     def test_dashboard_page_renders(self):
         response = self.client.get("/")
         self.assertEqual(response.status_code, 200)
-        self.assertIn(b"CGM history from your SQLite store.", response.data)
+        self.assertIn("CGM history from your SQLite store.".encode("utf-8"), response.data)
 
     def test_report_page_renders(self):
         response = self.client.get("/report?start=2026-05-18%2000:00:00&end=2026-05-19%2000:00:00")
         self.assertEqual(response.status_code, 200)
-        self.assertIn(b"CGM report for the selected period.", response.data)
+        self.assertIn("CGM report for the selected period.".encode("utf-8"), response.data)
+
+    def test_dashboard_page_renders_arabic(self):
+        response = self.client.get("/?lang=ar")
+        self.assertEqual(response.status_code, 200)
+        self.assertIn('lang="ar" dir="rtl"'.encode("utf-8"), response.data)
+        self.assertIn("سجل الجلوكوز من قاعدة SQLite الخاصة بك.".encode("utf-8"), response.data)
+
+    def test_report_page_renders_arabic(self):
+        response = self.client.get("/report?start=2026-05-18%2000:00:00&end=2026-05-19%2000:00:00&lang=ar")
+        self.assertEqual(response.status_code, 200)
+        self.assertIn('lang="ar" dir="rtl"'.encode("utf-8"), response.data)
+        self.assertIn("تقرير الجلوكوز للفترة المحددة.".encode("utf-8"), response.data)
 
 
 if __name__ == "__main__":

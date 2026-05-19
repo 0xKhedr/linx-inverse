@@ -27,7 +27,8 @@ body {
 
 code,
 button,
-input {
+input,
+select {
     font: inherit;
 }
 
@@ -99,6 +100,13 @@ h1 {
 }
 
 .range-form input {
+    width: 100%;
+    padding: 0.85rem 0.95rem;
+    border: 1px solid var(--line);
+    background: white;
+}
+
+.range-form select {
     width: 100%;
     padding: 0.85rem 0.95rem;
     border: 1px solid var(--line);
@@ -346,6 +354,21 @@ td {
     padding: 0.65rem 0.25rem;
     text-align: left;
     border-bottom: 1px solid rgba(36, 32, 24, 0.1);
+}
+
+[dir="rtl"] {
+    text-align: right;
+}
+
+[dir="rtl"] .range-form,
+[dir="rtl"] .chart-control,
+[dir="rtl"] .quality-list div {
+    text-align: right;
+}
+
+[dir="rtl"] th,
+[dir="rtl"] td {
+    text-align: right;
 }
 
 tbody tr:last-child td {

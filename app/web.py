@@ -7,6 +7,11 @@ from flask import Flask, jsonify, render_template, request
 from app.dashboard import DashboardError, create_connection, get_daily_summary
 from app.dashboard import get_dashboard_payload, get_default_range, get_report_payload
 from app.dashboard import get_series, get_summary, parse_date_range
+from app.i18n import get_ui_copy, resolve_language
+
+
+def get_ui_language() -> str:
+    return resolve_language(request.args.get("lang"))
 
 
 def create_app(db_path: Path | str = "resources/database.db") -> Flask:
@@ -27,11 +32,15 @@ def create_app(db_path: Path | str = "resources/database.db") -> Flask:
 
     @app.get("/")
     def index():
+        language = get_ui_language()
+        ui = get_ui_copy(language)
         conn = open_db()
         try:
             date_range = get_default_range(conn)
             return render_template(
                 "index.html",
+                language=language,
+                ui=ui,
                 default_start=date_range.start.strftime("%Y-%m-%dT%H:%M:%S"),
                 default_end=date_range.end.strftime("%Y-%m-%dT%H:%M:%S"),
                 default_start_api=date_range.start.strftime("%Y-%m-%d %H:%M:%S"),
@@ -41,6 +50,8 @@ def create_app(db_path: Path | str = "resources/database.db") -> Flask:
         except DashboardError as exc:
             return render_template(
                 "index.html",
+                language=language,
+                ui=ui,
                 default_start="",
                 default_end="",
                 default_start_api="",
@@ -52,13 +63,15 @@ def create_app(db_path: Path | str = "resources/database.db") -> Flask:
 
     @app.get("/report")
     def report():
+        language = get_ui_language()
+        ui = get_ui_copy(language)
         conn = open_db()
         try:
             date_range = parse_date_range(request.args.get("start"), request.args.get("end"), conn)
             payload = get_report_payload(conn, date_range)
-            return render_template("report.html", report_payload=payload)
+            return render_template("report.html", report_payload=payload, language=language, ui=ui)
         except DashboardError as exc:
-            return render_template("report.html", report_payload=None, error=str(exc)), 400
+            return render_template("report.html", report_payload=None, error=str(exc), language=language, ui=ui), 400
         finally:
             conn.close()
 

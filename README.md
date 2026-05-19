@@ -1,6 +1,6 @@
 # LinX Inverse
 
-Reverse-engineering utilities and a lightweight Python client for interacting with the AiDEX/LinX backend. The client can log in, fetch CGM records, and store them locally. A separate decryptor script can decrypt response payloads that include `encryptData`.
+Reverse-engineering utilities and a lightweight Python client for interacting with the AiDEX/LinX backend. The client can log in, fetch CGM records, store them locally, and inspect them through a local Flask dashboard and printable report view. A separate decryptor script can decrypt response payloads that include `encryptData`.
 
 Use this project only with accounts and data you are authorized to access.
 
@@ -10,6 +10,8 @@ Use this project only with accounts and data you are authorized to access.
 - Fetch CGM records from `cgmRecord/getCgmRecordsByPageInfo`.
 - Store CGM records in a local SQLite database.
 - Inspect stored CGM data through a local Flask dashboard.
+- Export a printable CGM report for a selected time window.
+- Switch the dashboard and report UI between English and Arabic (`?lang=en` / `?lang=ar`).
 - Decrypt `encryptData` payloads using an RSA private key.
 - Simple, script-first workflow (no external services required).
 
@@ -19,6 +21,7 @@ Use this project only with accounts and data you are authorized to access.
 - app/decrypter.py: CLI tool for decrypting `encryptData`.
 - app/web.py: Local Flask dashboard for CGM analysis.
 - app/dashboard.py: Shared SQLite query layer for dashboard routes and tests.
+- app/i18n.py and app/translations.json: UI language resolution and English/Arabic copy.
 - linx_client.py, linx_decrypter.py, web_app.py: Thin compatibility launchers.
 - requirements.txt: Python dependencies.
 - resources/credentials.json: Login credentials (do not commit real values).
@@ -66,22 +69,42 @@ If you want to force a new login, uncomment the `linx.login(creds)` line in `lin
 ### Run the CGM analysis web interface
 
 ```bash
-./venv/Scripts/python -m pip install -r requirements.txt
 ./venv/Scripts/python web_app.py
 ```
 
 Open `http://127.0.0.1:5000/` in your browser.
 
-The dashboard is read-only and queries `resources/database.db` directly. If no `start` and `end`
-query parameters are provided to the JSON endpoints, the UI uses the latest 24-hour window present
-in the database based on `appTime`.
+The dashboard is read-only and queries `resources/database.db` directly. When no explicit date range
+is supplied, the UI uses a default window ending on the latest day in the database and spanning up
+to the previous 7 days, bounded by the earliest available record.
+
+The web UI supports:
+
+- `lang=en` for English.
+- `lang=ar` for Arabic with right-to-left layout.
+
+Examples:
+
+```text
+http://127.0.0.1:5000/
+http://127.0.0.1:5000/?lang=ar
+http://127.0.0.1:5000/report?start=2026-05-18%2000:00:00&end=2026-05-19%2023:59:59&lang=ar
+```
 
 Available routes:
 
 - `GET /`: Render the dashboard.
+- `GET /report?start=YYYY-MM-DD HH:MM:SS&end=YYYY-MM-DD HH:MM:SS[&lang=en|ar]`: Render the printable report.
+- `GET /api/dashboard?start=YYYY-MM-DD HH:MM:SS&end=YYYY-MM-DD HH:MM:SS`
 - `GET /api/summary?start=YYYY-MM-DD HH:MM:SS&end=YYYY-MM-DD HH:MM:SS`
+- `GET /api/report?start=YYYY-MM-DD HH:MM:SS&end=YYYY-MM-DD HH:MM:SS`
 - `GET /api/series?start=YYYY-MM-DD HH:MM:SS&end=YYYY-MM-DD HH:MM:SS`
 - `GET /api/daily?start=YYYY-MM-DD HH:MM:SS&end=YYYY-MM-DD HH:MM:SS`
+
+Notes:
+
+- The HTML routes use `lang` only for presentation. The JSON APIs stay language-neutral.
+- The dashboard includes an in-page language selector that preserves the selected range and report link.
 
 ### Decrypt an `encryptData` payload
 
