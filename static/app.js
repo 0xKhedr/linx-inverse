@@ -120,20 +120,23 @@ function renderSummary(summary) {
     renderEvents(summaryFields.recentHighs, summary.recentHighs);
 }
 
-function upsertChart(chartKey, canvasId, configFactory) {
-    if (state.charts[chartKey]) {
-        state.charts[chartKey].destroy();
+function createOrUpdateChart(chartKey, canvasId, configFactory, updateFn) {
+    const existingChart = state.charts[chartKey];
+    if (!existingChart) {
+        const context = document.getElementById(canvasId);
+        state.charts[chartKey] = new Chart(context, configFactory());
+        return;
     }
 
-    const context = document.getElementById(canvasId);
-    state.charts[chartKey] = new Chart(context, configFactory());
+    updateFn(existingChart);
+    existingChart.update("none");
 }
 
 function renderSeriesChart(payload) {
     const labels = payload.points.map((point) => point.appTime);
     const values = payload.points.map((point) => point.glucose);
 
-    upsertChart("series", "series-chart", () => ({
+    createOrUpdateChart("series", "series-chart", () => ({
         type: "line",
         data: {
             labels,
@@ -146,9 +149,11 @@ function renderSeriesChart(payload) {
                 fill: true,
                 tension: 0.22,
                 borderWidth: 2,
+                normalized: true,
             }],
         },
         options: {
+            animation: false,
             responsive: true,
             maintainAspectRatio: false,
             plugins: {
@@ -163,13 +168,16 @@ function renderSeriesChart(payload) {
                 },
             },
         },
-    }));
+    }), (chart) => {
+        chart.data.labels = labels;
+        chart.data.datasets[0].data = values;
+    });
 }
 
 function renderDailyChart(payload) {
     const labels = payload.days.map((day) => day.day);
 
-    upsertChart("daily", "daily-chart", () => ({
+    createOrUpdateChart("daily", "daily-chart", () => ({
         type: "bar",
         data: {
             labels,
@@ -198,6 +206,7 @@ function renderDailyChart(payload) {
             ],
         },
         options: {
+            animation: false,
             responsive: true,
             maintainAspectRatio: false,
             scales: {
@@ -206,7 +215,12 @@ function renderDailyChart(payload) {
                 },
             },
         },
-    }));
+    }), (chart) => {
+        chart.data.labels = labels;
+        chart.data.datasets[0].data = payload.days.map((day) => day.avgGlucose);
+        chart.data.datasets[1].data = payload.days.map((day) => day.minGlucose);
+        chart.data.datasets[2].data = payload.days.map((day) => day.maxGlucose);
+    });
 }
 
 function setFormDisabled(disabled) {
@@ -223,14 +237,10 @@ function loadDashboard(start = defaultStart, end = defaultEnd) {
     setFormDisabled(true);
     const query = buildQuery(start, end);
 
-    return Promise.all([
-        fetchJson(`/api/summary${query}`),
-        fetchJson(`/api/series${query}`),
-        fetchJson(`/api/daily${query}`),
-    ]).then(([summary, series, daily]) => {
-        renderSummary(summary);
-        renderSeriesChart(series);
-        renderDailyChart(daily);
+    return fetchJson(`/api/dashboard${query}`).then((payload) => {
+        renderSummary(payload.summary);
+        renderSeriesChart(payload.series);
+        renderDailyChart(payload.daily);
     }).catch((error) => {
         window.alert(error.message);
     }).finally(() => {

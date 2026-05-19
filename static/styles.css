@@ -3,14 +3,14 @@
     --bg-accent: radial-gradient(circle at top left, rgba(234, 126, 62, 0.18), transparent 30%),
         radial-gradient(circle at top right, rgba(46, 125, 154, 0.14), transparent 32%),
         linear-gradient(180deg, #f7f4ed 0%, #efe9dc 100%);
-    --panel: rgba(255, 252, 246, 0.88);
+    --panel: #fffaf2;
     --panel-strong: #fffdf9;
     --line: rgba(36, 32, 24, 0.12);
     --text: #221d16;
     --muted: #6f6558;
     --accent: #bf5b2c;
     --accent-deep: #8f3814;
-    --shadow: 0 18px 45px rgba(64, 49, 25, 0.08);
+    --shadow: 0 6px 18px rgba(64, 49, 25, 0.06);
 }
 
 * {
@@ -43,7 +43,6 @@ input {
 .kpi-card {
     border: 1px solid var(--line);
     background: var(--panel);
-    backdrop-filter: blur(14px);
     box-shadow: var(--shadow);
 }
 
@@ -163,6 +162,11 @@ h1 {
     padding: 1.4rem;
 }
 
+.panel {
+    content-visibility: auto;
+    contain-intrinsic-size: 420px;
+}
+
 .chart-panel {
     margin-bottom: 1.5rem;
 }
@@ -197,7 +201,7 @@ h1 {
 .quality-list div {
     padding: 1rem;
     border-radius: 18px;
-    background: rgba(255, 255, 255, 0.65);
+    background: #fffdf9;
     border: 1px solid rgba(36, 32, 24, 0.08);
 }
 
@@ -231,7 +235,7 @@ h1 {
     justify-content: space-between;
     padding: 0.8rem 0.95rem;
     border-radius: 14px;
-    background: rgba(255, 255, 255, 0.65);
+    background: #fffdf9;
     border: 1px solid rgba(36, 32, 24, 0.08);
 }
 

@@ -3,7 +3,7 @@ import unittest
 from pathlib import Path
 
 from app.dashboard import create_connection, ensure_schema, get_daily_summary, get_series
-from app.dashboard import get_summary, parse_date_range
+from app.dashboard import get_dashboard_payload, get_summary, parse_date_range
 from app.web import create_app
 
 
@@ -93,6 +93,21 @@ class DashboardQueryTestCase(unittest.TestCase):
         finally:
             conn.close()
 
+    def test_dashboard_payload_shape(self):
+        conn = self.open_conn()
+        try:
+            date_range = parse_date_range("2026-05-18 00:00:00", "2026-05-19 00:00:00", conn)
+            payload = get_dashboard_payload(conn, date_range)
+        finally:
+            conn.close()
+
+        self.assertIn("summary", payload)
+        self.assertIn("series", payload)
+        self.assertIn("daily", payload)
+        self.assertEqual(payload["summary"]["metrics"]["recordCount"], 3)
+        self.assertEqual(len(payload["series"]["points"]), 3)
+        self.assertEqual(len(payload["daily"]["days"]), 2)
+
 
 class WebAppApiTestCase(unittest.TestCase):
     def setUp(self):
@@ -109,6 +124,13 @@ class WebAppApiTestCase(unittest.TestCase):
         self.temp_dir.cleanup()
 
     def test_api_routes(self):
+        response = self.client.get("/api/dashboard?start=2026-05-18%2000:00:00&end=2026-05-19%2000:00:00")
+        self.assertEqual(response.status_code, 200)
+        payload = response.get_json()
+        self.assertEqual(payload["summary"]["metrics"]["recordCount"], 3)
+        self.assertEqual(len(payload["series"]["points"]), 3)
+        self.assertEqual(len(payload["daily"]["days"]), 2)
+
         response = self.client.get("/api/summary?start=2026-05-18%2000:00:00&end=2026-05-19%2000:00:00")
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response.get_json()["metrics"]["recordCount"], 3)

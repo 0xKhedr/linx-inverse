@@ -52,6 +52,9 @@ class LinX:
             smooth REAL,
             smoothState INTEGER
         );
+                       
+        CREATE INDEX IF NOT EXISTS idx_cgmRecords_appTime
+        ON cgmRecords(appTime);
         """)
         cursor.connection.commit()
         logger.debug('Database ready: cgmRecords table ensured.')

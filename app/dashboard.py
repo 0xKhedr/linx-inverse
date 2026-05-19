@@ -39,6 +39,9 @@ CREATE TABLE IF NOT EXISTS cgmRecords (
     smooth REAL,
     smoothState INTEGER
 );
+
+CREATE INDEX IF NOT EXISTS idx_cgmRecords_appTime
+ON cgmRecords(appTime);
 """
 
 
@@ -298,4 +301,17 @@ def get_summary(
         },
         "recentLows": _recent_events(conn, date_range, "<", low_threshold),
         "recentHighs": _recent_events(conn, date_range, ">", high_threshold),
+    }
+
+
+def get_dashboard_payload(
+    conn: sqlite3.Connection,
+    date_range: DateRange,
+    low_threshold: float = LOW_THRESHOLD,
+    high_threshold: float = HIGH_THRESHOLD,
+) -> dict[str, Any]:
+    return {
+        "summary": get_summary(conn, date_range, low_threshold=low_threshold, high_threshold=high_threshold),
+        "series": get_series(conn, date_range),
+        "daily": get_daily_summary(conn, date_range),
     }

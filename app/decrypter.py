@@ -41,7 +41,6 @@ def main():
     private_key = str().join(private_key_data.splitlines())
 
     decrypter = Decrypter(private_key)
-
     encryptData = input('encryptData: ').strip()
     decryptData = decrypter.decrypt(encryptData)
 
