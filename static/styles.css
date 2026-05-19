@@ -175,8 +175,10 @@ h1 {
 }
 
 .chart-panel canvas {
+    display: block;
     width: 100%;
-    min-height: 320px;
+    height: 320px;
+    max-height: 320px;
 }
 
 .insight-grid {
@@ -282,6 +284,11 @@ tbody tr:last-child td {
     .distribution-grid,
     .event-columns {
         grid-template-columns: 1fr;
+    }
+
+    .chart-panel canvas {
+        height: 260px;
+        max-height: 260px;
     }
 
     h1 {
