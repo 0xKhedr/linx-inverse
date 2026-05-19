@@ -3,7 +3,7 @@ import unittest
 from pathlib import Path
 
 from app.dashboard import create_connection, ensure_schema, get_daily_summary, get_series
-from app.dashboard import get_dashboard_payload, get_summary, parse_date_range
+from app.dashboard import get_dashboard_payload, get_report_payload, get_summary, parse_date_range
 from app.web import create_app
 
 
@@ -108,6 +108,19 @@ class DashboardQueryTestCase(unittest.TestCase):
         self.assertEqual(len(payload["series"]["points"]), 3)
         self.assertEqual(len(payload["daily"]["days"]), 2)
 
+    def test_report_payload_shape(self):
+        conn = self.open_conn()
+        try:
+            date_range = parse_date_range("2026-05-18 00:00:00", "2026-05-19 00:00:00", conn)
+            payload = get_report_payload(conn, date_range)
+        finally:
+            conn.close()
+
+        self.assertIn("days", payload)
+        self.assertEqual(len(payload["days"]), 2)
+        self.assertEqual(payload["days"][0]["day"], "2026-05-18")
+        self.assertEqual(len(payload["days"][0]["points"]), 2)
+
 
 class WebAppApiTestCase(unittest.TestCase):
     def setUp(self):
@@ -135,6 +148,10 @@ class WebAppApiTestCase(unittest.TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response.get_json()["metrics"]["recordCount"], 3)
 
+        response = self.client.get("/api/report?start=2026-05-18%2000:00:00&end=2026-05-19%2000:00:00")
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(len(response.get_json()["days"]), 2)
+
         response = self.client.get("/api/series?start=2026-05-18%2000:00:00&end=2026-05-19%2000:00:00")
         self.assertEqual(response.status_code, 200)
         self.assertEqual(len(response.get_json()["points"]), 3)
@@ -152,6 +169,11 @@ class WebAppApiTestCase(unittest.TestCase):
         response = self.client.get("/")
         self.assertEqual(response.status_code, 200)
         self.assertIn(b"CGM history from your SQLite store.", response.data)
+
+    def test_report_page_renders(self):
+        response = self.client.get("/report?start=2026-05-18%2000:00:00&end=2026-05-19%2000:00:00")
+        self.assertEqual(response.status_code, 200)
+        self.assertIn(b"CGM report for the selected period.", response.data)
 
 
 if __name__ == "__main__":

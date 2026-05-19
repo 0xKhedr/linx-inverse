@@ -318,3 +318,66 @@ def get_dashboard_payload(
         "series": get_series(conn, date_range),
         "daily": get_daily_summary(conn, date_range),
     }
+
+
+def get_report_payload(
+    conn: sqlite3.Connection,
+    date_range: DateRange,
+    low_threshold: float = LOW_THRESHOLD,
+    high_threshold: float = HIGH_THRESHOLD,
+) -> dict[str, Any]:
+    series = get_series(conn, date_range)
+    daily = get_daily_summary(conn, date_range)
+    summary = get_summary(conn, date_range, low_threshold=low_threshold, high_threshold=high_threshold)
+
+    days_by_key: dict[str, dict[str, Any]] = {}
+    for day in daily["days"]:
+        days_by_key[day["day"]] = {
+            "day": day["day"],
+            "count": day["count"],
+            "avgGlucose": day["avgGlucose"],
+            "minGlucose": day["minGlucose"],
+            "maxGlucose": day["maxGlucose"],
+            "lowCount": 0,
+            "highCount": 0,
+            "points": [],
+        }
+
+    for point in series["points"]:
+        day_key = point["appTime"][:10]
+        day = days_by_key.get(day_key)
+        if day is None:
+            day = {
+                "day": day_key,
+                "count": 0,
+                "avgGlucose": None,
+                "minGlucose": None,
+                "maxGlucose": None,
+                "lowCount": 0,
+                "highCount": 0,
+                "points": [],
+            }
+            days_by_key[day_key] = day
+
+        glucose = point["glucose"]
+        day["points"].append(point)
+        day["count"] += 1
+        if glucose is not None:
+            if day["minGlucose"] is None or glucose < day["minGlucose"]:
+                day["minGlucose"] = glucose
+            if day["maxGlucose"] is None or glucose > day["maxGlucose"]:
+                day["maxGlucose"] = glucose
+            if glucose < low_threshold:
+                day["lowCount"] += 1
+            if glucose > high_threshold:
+                day["highCount"] += 1
+
+    ordered_days = [days_by_key[key] for key in sorted(days_by_key.keys())]
+
+    return {
+        "summary": summary,
+        "series": series,
+        "daily": daily,
+        "days": ordered_days,
+        "generatedAt": format_app_time(datetime.now()),
+    }

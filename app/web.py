@@ -5,7 +5,8 @@ from pathlib import Path
 from flask import Flask, jsonify, render_template, request
 
 from app.dashboard import DashboardError, create_connection, get_daily_summary
-from app.dashboard import get_dashboard_payload, get_default_range, get_series, get_summary, parse_date_range
+from app.dashboard import get_dashboard_payload, get_default_range, get_report_payload
+from app.dashboard import get_series, get_summary, parse_date_range
 
 
 def create_app(db_path: Path | str = "resources/database.db") -> Flask:
@@ -49,6 +50,18 @@ def create_app(db_path: Path | str = "resources/database.db") -> Flask:
         finally:
             conn.close()
 
+    @app.get("/report")
+    def report():
+        conn = open_db()
+        try:
+            date_range = parse_date_range(request.args.get("start"), request.args.get("end"), conn)
+            payload = get_report_payload(conn, date_range)
+            return render_template("report.html", report_payload=payload)
+        except DashboardError as exc:
+            return render_template("report.html", report_payload=None, error=str(exc)), 400
+        finally:
+            conn.close()
+
     @app.get("/api/summary")
     def api_summary():
         return json_response(lambda conn, date_range: get_summary(conn, date_range))
@@ -56,6 +69,10 @@ def create_app(db_path: Path | str = "resources/database.db") -> Flask:
     @app.get("/api/dashboard")
     def api_dashboard():
         return json_response(lambda conn, date_range: get_dashboard_payload(conn, date_range))
+
+    @app.get("/api/report")
+    def api_report():
+        return json_response(lambda conn, date_range: get_report_payload(conn, date_range))
 
     @app.get("/api/series")
     def api_series():

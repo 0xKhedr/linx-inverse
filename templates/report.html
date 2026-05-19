@@ -1,0 +1,134 @@
+<!doctype html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>CGM Report</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;700&family=Source+Sans+3:wght@400;600&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}">
+</head>
+<body>
+    <main class="page-shell report-shell">
+        {% if error %}
+        <section class="hero">
+            <div>
+                <p class="eyebrow">Report Error</p>
+                <h1>Unable to generate report.</h1>
+                <p class="hero-copy">{{ error }}</p>
+            </div>
+        </section>
+        {% else %}
+        <section class="hero report-hero">
+            <div>
+                <p class="eyebrow">Exported Report</p>
+                <h1>CGM report for the selected period.</h1>
+                <p class="hero-copy">
+                    Window {{ report_payload.summary.start }} to {{ report_payload.summary.end }}.
+                    Generated {{ report_payload.generatedAt }}.
+                </p>
+            </div>
+            <div class="report-actions">
+                <button class="print-action" type="button" onclick="window.print()">Print / Save PDF</button>
+            </div>
+        </section>
+
+        <section class="kpi-grid">
+            <article class="kpi-card">
+                <span>Latest glucose</span>
+                <strong>{{ report_payload.summary.latest.glucose if report_payload.summary.latest else '--' }} mg/dL</strong>
+                <small>{{ report_payload.summary.latest.appTime if report_payload.summary.latest else 'No rows' }}</small>
+            </article>
+            <article class="kpi-card">
+                <span>Records</span>
+                <strong>{{ report_payload.summary.metrics.recordCount }}</strong>
+                <small>Rows in report window</small>
+            </article>
+            <article class="kpi-card">
+                <span>Average</span>
+                <strong>{{ report_payload.summary.metrics.avgGlucose }}</strong>
+                <small>mg/dL</small>
+            </article>
+            <article class="kpi-card">
+                <span>Min / Max</span>
+                <strong>{{ report_payload.summary.metrics.minGlucose }} / {{ report_payload.summary.metrics.maxGlucose }}</strong>
+                <small>mg/dL</small>
+            </article>
+            <article class="kpi-card">
+                <span>Low / In Range / High</span>
+                <strong>{{ report_payload.summary.metrics.lowPercent }}% / {{ report_payload.summary.metrics.inRangePercent }}% / {{ report_payload.summary.metrics.highPercent }}%</strong>
+                <small>Thresholds {{ report_payload.summary.thresholds.low }} / {{ report_payload.summary.thresholds.high }} mg/dL</small>
+            </article>
+            <article class="kpi-card">
+                <span>Quality</span>
+                <strong>{{ report_payload.summary.quality.avgQuality }} avg</strong>
+                <small>{{ report_payload.summary.quality.validCount }} valid, {{ report_payload.summary.quality.invalidCount }} invalid</small>
+            </article>
+        </section>
+
+        <section class="chart-panel">
+            <div class="panel-heading">
+                <div>
+                    <p class="eyebrow">Overall Trend</p>
+                    <h2>Glucose over the selected period</h2>
+                </div>
+            </div>
+            <canvas id="report-overall-chart" aria-label="Overall report glucose chart" role="img"></canvas>
+        </section>
+
+        <section class="panel report-table-panel">
+            <div class="panel-heading">
+                <div>
+                    <p class="eyebrow">Daily Summary</p>
+                    <h2>Daily aggregates</h2>
+                </div>
+            </div>
+            <table>
+                <thead>
+                    <tr><th>Day</th><th>Count</th><th>Average</th><th>Min</th><th>Max</th><th>Lows</th><th>Highs</th></tr>
+                </thead>
+                <tbody>
+                    {% for day in report_payload.days %}
+                    <tr>
+                        <td>{{ day.day }}</td>
+                        <td>{{ day.count }}</td>
+                        <td>{{ day.avgGlucose if day.avgGlucose is not none else '--' }}</td>
+                        <td>{{ day.minGlucose if day.minGlucose is not none else '--' }}</td>
+                        <td>{{ day.maxGlucose if day.maxGlucose is not none else '--' }}</td>
+                        <td>{{ day.lowCount }}</td>
+                        <td>{{ day.highCount }}</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </section>
+
+        <section class="report-days">
+            {% for day in report_payload.days %}
+            <section class="chart-panel report-day-panel">
+                <div class="panel-heading">
+                    <div>
+                        <p class="eyebrow">Daily Chart</p>
+                        <h2>{{ day.day }}</h2>
+                    </div>
+                    <div class="report-day-meta">
+                        <span>{{ day.count }} rows</span>
+                        <span>Min {{ day.minGlucose if day.minGlucose is not none else '--' }}</span>
+                        <span>Max {{ day.maxGlucose if day.maxGlucose is not none else '--' }}</span>
+                    </div>
+                </div>
+                <canvas class="report-day-chart" id="day-chart-{{ loop.index0 }}" data-day-index="{{ loop.index0 }}" aria-label="Daily glucose chart for {{ day.day }}" role="img"></canvas>
+            </section>
+            {% endfor %}
+        </section>
+        {% endif %}
+    </main>
+
+    {% if report_payload %}
+    <script id="report-payload" type="application/json">{{ report_payload|tojson }}</script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="{{ url_for('static', filename='report.js') }}"></script>
+    {% endif %}
+</body>
+</html>

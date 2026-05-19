@@ -15,6 +15,7 @@ const state = {
 
 const seriesSmoothnessInput = document.getElementById("series-smoothness");
 const seriesSmoothnessLabel = document.getElementById("series-smoothness-label");
+const reportLink = document.getElementById("report-link");
 const thresholdRegionPlugin = {
     id: "thresholdRegionPlugin",
     beforeDraw(chart, _args, options) {
@@ -151,6 +152,13 @@ function getSmoothedSeriesValues(points) {
 function buildQuery(start, end) {
     const params = new URLSearchParams({ start, end });
     return `?${params.toString()}`;
+}
+
+function syncReportLink(start, end) {
+    if (!reportLink) {
+        return;
+    }
+    reportLink.href = `/report${buildQuery(start, end)}`;
 }
 
 function renderDistribution(listNode, rows, labelKey) {
@@ -400,6 +408,7 @@ function loadDashboard(start = defaultStart, end = defaultEnd) {
     }
 
     setFormDisabled(true);
+    syncReportLink(start, end);
     const query = buildQuery(start, end);
 
     return fetchJson(`/api/dashboard${query}`).then((payload) => {
