@@ -2,6 +2,7 @@ from hashlib import md5
 import json
 import logging
 import sqlite3
+
 from requests import Session as Client
 
 
@@ -56,11 +57,11 @@ class LinX:
         logger.debug('Database ready: cgmRecords table ensured.')
 
         return cursor
-    
+
     @staticmethod
     def hash_pass(value: str):
         return md5(value.encode('utf-8')).hexdigest()
-    
+
     def __init__(self, client: Client = Client(), decrypter=None, creds: dict = {'userName': None, 'password': None}):
         self.client = client
         self.client.headers.update({
@@ -81,25 +82,25 @@ class LinX:
         try:
             with open('./resources/session.json', 'r', encoding='utf-8') as session_file:
                 self.session = json.load(session_file)
-            
+
             self.client.headers.update({
-                'x-token': self.session['token'], # Omission gives code 800
+                'x-token': self.session['token'],
                 'encryption': 'enabled' if self.decrypter else 'disabled',
             })
             logger.info('Session loaded from resources/session.json.')
         except FileNotFoundError:
             self.session = {}
             logger.info('No session file found; starting without token.')
-        
+
         self.db = LinX.setup_db()
-    
+
     def login(self, creds: dict):
         if creds:
             self.creds = creds
             self.creds['password'] = LinX.hash_pass(self.creds['password'])
 
         logger.info('Logging in via password flow.')
-        self.session = self.request(f'user/loginByPassword', method='POST', json=self.creds)
+        self.session = self.request('user/loginByPassword', method='POST', json=self.creds)
         self.client.headers.update({'x-token': self.session['token']})
         with open('./resources/session.json', 'w', encoding='utf-8') as session_file:
             json.dump(self.session, session_file, ensure_ascii=False, indent=4)
@@ -108,7 +109,7 @@ class LinX:
     def store_cgm_records(self, userId: str = None, all=False, pageNum: int = 1, pageSize: int = 5000, endAutoIncrementColumn: str = None):
         if userId is None:
             userId = self.session['userId']
-        
+
         logger.info('Fetching CGM records page=%s size=%s end=%s', pageNum, pageSize, endAutoIncrementColumn)
         cgm_data = self.request('cgmRecord/getCgmRecordsByPageInfo', method='GET', params={
             'userId': userId,
@@ -137,16 +138,16 @@ class LinX:
             self.store_cgm_records(userId, all, pageNum, pageSize, cgm_data[-1]['autoIncrementColumn'])
 
     def request(self, url: str, **kwargs):
-        logger.debug(f'HTTP {kwargs.get('method', 'GET')} {LinX.BASE_URL}/{url}')
+        logger.debug(f"HTTP {kwargs.get('method', 'GET')} {LinX.BASE_URL}/{url}")
         res = self.client.request(url=f'{LinX.BASE_URL}/{url}', **kwargs)
-        logger.debug(f'HTTP {kwargs.get('method', 'GET')} {LinX.BASE_URL}/{url} -> {res.status_code}')
+        logger.debug(f"HTTP {kwargs.get('method', 'GET')} {LinX.BASE_URL}/{url} -> {res.status_code}")
 
         contentType = res.headers['Content-Type']
         if 'application/json' in contentType:
             body = res.json()
             if self.decrypter:
                 body = self.decrypter.decrypt(body['encryptData'])
-            
+
             data = body.get('data', None)
         else:
             data = res.text
@@ -154,13 +155,16 @@ class LinX:
         return data
 
 
-if __name__ == '__main__':
+def main():
     logging.basicConfig(level=logging.INFO, format='%(asctime)s %(levelname)s %(name)s: %(message)s')
-
-    linx = LinX()
 
     with open('./resources/credentials.json', encoding='utf-8') as creds_file:
         creds = json.load(creds_file)
 
-    # linx.login(creds)
-    linx.store_cgm_records('062d529b4aa377fe4613a994d1d47c2e', True)
+    linx = LinX()
+    linx.login(creds)
+    linx.store_cgm_records(True)
+
+
+if __name__ == '__main__':
+    main()

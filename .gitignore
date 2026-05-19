@@ -1,4 +1,7 @@
 venv
 
+__pycache__/
+*.py[cod]
+
 /resources/*
 !/resources/.gitkeep

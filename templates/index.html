@@ -1,0 +1,164 @@
+<!doctype html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>LinX CGM Dashboard</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;700&family=Source+Sans+3:wght@400;600&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}">
+</head>
+<body data-default-start="{{ default_start_api }}" data-default-end="{{ default_end_api }}">
+    <main class="page-shell">
+        <section class="hero">
+            <div>
+                <p class="eyebrow">Local Analysis</p>
+                <h1>CGM history from your SQLite store.</h1>
+                <p class="hero-copy">
+                    Explore glucose trends, day-level summaries, and threshold excursions from the records in
+                    <code>resources/database.db</code>.
+                </p>
+                {% if error %}
+                <p class="hero-copy">{{ error }}</p>
+                {% endif %}
+            </div>
+            <form id="range-form" class="range-form">
+                <label>
+                    <span>Start</span>
+                    <input id="start-input" name="start" type="datetime-local" value="{{ default_start }}" required>
+                </label>
+                <label>
+                    <span>End</span>
+                    <input id="end-input" name="end" type="datetime-local" value="{{ default_end }}" required>
+                </label>
+                <button type="submit">Update Dashboard</button>
+            </form>
+        </section>
+
+        <section class="kpi-grid" id="kpi-grid">
+            <article class="kpi-card accent">
+                <span>Latest glucose</span>
+                <strong id="latest-glucose">--</strong>
+                <small id="latest-timestamp">--</small>
+            </article>
+            <article class="kpi-card">
+                <span>Records</span>
+                <strong id="record-count">--</strong>
+                <small>Rows in selected window</small>
+            </article>
+            <article class="kpi-card">
+                <span>Average</span>
+                <strong id="avg-glucose">--</strong>
+                <small>mg/dL</small>
+            </article>
+            <article class="kpi-card">
+                <span>Min / Max</span>
+                <strong id="min-max">--</strong>
+                <small>mg/dL</small>
+            </article>
+            <article class="kpi-card">
+                <span>Low / In Range / High</span>
+                <strong id="range-mix">--</strong>
+                <small>Thresholds 70 / 180 mg/dL</small>
+            </article>
+            <article class="kpi-card">
+                <span>Quality</span>
+                <strong id="quality-summary">--</strong>
+                <small id="quality-detail">--</small>
+            </article>
+        </section>
+
+        <section class="chart-panel">
+            <div class="panel-heading">
+                <div>
+                    <p class="eyebrow">Series</p>
+                    <h2>Glucose over time</h2>
+                </div>
+            </div>
+            <canvas id="series-chart" aria-label="Glucose time series" role="img"></canvas>
+        </section>
+
+        <section class="chart-panel">
+            <div class="panel-heading">
+                <div>
+                    <p class="eyebrow">Daily Rollup</p>
+                    <h2>Average, minimum, and maximum by day</h2>
+                </div>
+            </div>
+            <canvas id="daily-chart" aria-label="Daily glucose summary" role="img"></canvas>
+        </section>
+
+        <section class="insight-grid">
+            <article class="panel">
+                <div class="panel-heading">
+                    <div>
+                        <p class="eyebrow">Quality</p>
+                        <h2>Data quality snapshot</h2>
+                    </div>
+                </div>
+                <dl class="quality-list">
+                    <div>
+                        <dt>Valid glucose rows</dt>
+                        <dd id="valid-count">--</dd>
+                    </div>
+                    <div>
+                        <dt>Invalid glucose rows</dt>
+                        <dd id="invalid-count">--</dd>
+                    </div>
+                    <div>
+                        <dt>Non-zero status rows</dt>
+                        <dd id="alert-count">--</dd>
+                    </div>
+                    <div>
+                        <dt>Average quality</dt>
+                        <dd id="avg-quality">--</dd>
+                    </div>
+                </dl>
+                <div class="distribution-grid">
+                    <div>
+                        <h3>Status counts</h3>
+                        <ul id="status-counts" class="distribution-list"></ul>
+                    </div>
+                    <div>
+                        <h3>Quality bands</h3>
+                        <ul id="quality-bands" class="distribution-list"></ul>
+                    </div>
+                </div>
+            </article>
+
+            <article class="panel">
+                <div class="panel-heading">
+                    <div>
+                        <p class="eyebrow">Threshold Events</p>
+                        <h2>Recent lows and highs</h2>
+                    </div>
+                </div>
+                <div class="event-columns">
+                    <div>
+                        <h3>Recent lows</h3>
+                        <table>
+                            <thead>
+                                <tr><th>Time</th><th>Glucose</th><th>Quality</th></tr>
+                            </thead>
+                            <tbody id="recent-lows"></tbody>
+                        </table>
+                    </div>
+                    <div>
+                        <h3>Recent highs</h3>
+                        <table>
+                            <thead>
+                                <tr><th>Time</th><th>Glucose</th><th>Quality</th></tr>
+                            </thead>
+                            <tbody id="recent-highs"></tbody>
+                        </table>
+                    </div>
+                </div>
+            </article>
+        </section>
+    </main>
+
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="{{ url_for('static', filename='app.js') }}"></script>
+</body>
+</html>
