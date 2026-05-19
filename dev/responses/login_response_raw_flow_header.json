@@ -1,0 +1,19 @@
+﻿{
+  "http_status": 500,
+  "headers": {
+    "Date": "Sat, 16 May 2026 19:31:10 GMT",
+    "Content-Type": "application/json",
+    "Transfer-Encoding": "chunked",
+    "Connection": "close",
+    "Access-Control-Expose-Headers": "traceId",
+    "traceId": "199d6524-49e8-4d66-bcaa-50da086a0743",
+    "encryption": "enabled",
+    "Content-Encoding": "gzip",
+    "x-via": "1.1 PS-LHR-01wzv245:7 (Cdn Cache Server V2.0), 1.1 PS-CDG-04qmA46:18 (Cdn Cache Server V2.0)",
+    "x-ws-request-id": "6a08c5fe_PS-CDG-04qmA46_12320-8132"
+  },
+  "body": {
+    "code": 500,
+    "msg": "Request failed."
+  }
+}

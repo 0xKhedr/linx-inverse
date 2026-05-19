@@ -1,0 +1,29 @@
+﻿{
+  "http_status": 200,
+  "headers": {
+    "Date": "Sat, 16 May 2026 19:42:58 GMT",
+    "Content-Type": "application/json",
+    "Transfer-Encoding": "chunked",
+    "Connection": "close",
+    "Access-Control-Expose-Headers": "traceId",
+    "traceId": "4ed7da2b-7f18-4e73-ae87-1862c33b15ed",
+    "encryption": "enabled",
+    "Content-Encoding": "gzip",
+    "x-via": "1.1 PS-CDG-01Tfh126:9 (Cdn Cache Server V2.0), 1.1 PS-CDG-04qmA46:18 (Cdn Cache Server V2.0)",
+    "x-ws-request-id": "6a08c8c2_PS-CDG-04qmA46_12320-48963"
+  },
+  "body": {
+    "code": 200,
+    "msg": "Request success",
+    "count": 0,
+    "data": {
+      "appId": "global",
+      "project": "aidex-x",
+      "identity": 1,
+      "userId": "24da4caa6dbaf933fe655822450683ae",
+      "username": "ahmed.khidr123@gmail.com",
+      "token": "eyJhbGciOiJIUzI1NiJ9.eyJqdGkiOiIyNGRhNGNhYTZkYmFmOTMzZmU2NTU4MjI0NTA2ODNhZSIsImlhdCI6MTc3ODk2MDU3OCwic3ViIjoie1wib3RoZXJcIjpcIlwiLFwicHJvamVjdFwiOlwiYWlkZXgteFwiLFwidXNlcklkXCI6XCIyNGRhNGNhYTZkYmFmOTMzZmU2NTU4MjI0NTA2ODNhZVwiLFwidGltZW91dFwiOjg2NDAwMDAwMDAwMCxcImlkZW50aXR5XCI6MSxcImFwcElkXCI6XCJnbG9iYWxcIixcInBhc3N3b3JkVHlwZVwiOjEsXCJvcGVyYXRpb25cIjpcIk5PUk1BTFwiLFwidXNlcm5hbWVcIjpcImFobWVkLmtoaWRyMTIzQGdtYWlsLmNvbVwifSIsImlzcyI6IldFSVRBSWFpZGV4LXgiLCJleHAiOjI2NDI5NjA1Nzh9.rjy9Byf-OxyfyAHCduezXn8buvuf6hxpJJF5Ox4kQfY",
+      "other": ""
+    }
+  }
+}
