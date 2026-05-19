@@ -75,6 +75,11 @@
                     <p class="eyebrow">Series</p>
                     <h2>Glucose over time</h2>
                 </div>
+                <label class="chart-control" for="series-smoothness">
+                    <span>Smoothness</span>
+                    <input id="series-smoothness" type="range" min="0" max="100" step="1" value="100">
+                    <small id="series-smoothness-label">Most smooth</small>
+                </label>
             </div>
             <canvas id="series-chart" aria-label="Glucose time series" role="img"></canvas>
         </section>

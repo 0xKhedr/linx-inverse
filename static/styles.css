@@ -176,6 +176,8 @@ h1 {
     align-items: start;
     justify-content: space-between;
     margin-bottom: 1rem;
+    gap: 1rem;
+    flex-wrap: wrap;
 }
 
 .chart-panel canvas {
@@ -183,6 +185,27 @@ h1 {
     width: 100%;
     height: 320px;
     max-height: 320px;
+}
+
+.chart-control {
+    display: grid;
+    gap: 0.35rem;
+    min-width: 170px;
+    color: var(--muted);
+}
+
+.chart-control span {
+    font-size: 0.9rem;
+}
+
+.chart-control input[type="range"] {
+    width: 100%;
+    margin: 0;
+    accent-color: var(--accent);
+}
+
+.chart-control small {
+    color: var(--muted);
 }
 
 .insight-grid {
